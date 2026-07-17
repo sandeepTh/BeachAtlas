@@ -71,9 +71,13 @@ create policy "public read flags" on beach_flags for select using (true);
 create policy "anyone can insert beaches" on beaches for insert with check (auth.uid() is not null);
 create policy "anyone can insert flags" on beach_flags for insert with check (auth.uid() is not null);
 
--- Only the original contributor can edit/delete their own entry
-create policy "owner can update" on beaches for update using (owner_id = auth.uid());
-create policy "owner can delete" on beaches for delete using (owner_id = auth.uid());
+-- The original contributor can edit/delete their own entry; entries with
+-- no owner (owner_id is null, e.g. bulk-imported/seeded data) are editable
+-- by anyone, matching the app's client-side "isOwner" check. NULL = auth.uid()
+-- is never true in SQL, so the "owner_id is null" branch is required or
+-- unowned rows silently become un-editable (PostgREST error PGRST116).
+create policy "owner can update" on beaches for update using (owner_id is null or owner_id = auth.uid());
+create policy "owner can delete" on beaches for delete using (owner_id is null or owner_id = auth.uid());
 create policy "owner can delete own flags" on beach_flags for delete using (flagged_by = auth.uid());
 ```
 
@@ -100,3 +104,5 @@ If Edit is missing even on entries you just added, check:
 1. Anonymous sign-in is enabled in Supabase (step 2 above).
 2. The browser isn't blocking third-party cookies/local storage (the session lives in local storage).
 3. You're not in a fresh private/incognito window from a different device — ownership is per-browser-session, not per-person.
+
+If Edit **is** shown but saving fails with `Could not save changes: Cannot coerce the result to a single JSON object`, your `beaches` RLS policies predate the `owner_id is null` fix above — run `sql/fix_null_owner_rls.sql` once in the SQL Editor. (Cause: entries with `owner_id = null`, like bulk-imported data, look editable client-side but SQL's `NULL = auth.uid()` is never true, so the UPDATE silently matches zero rows.)
