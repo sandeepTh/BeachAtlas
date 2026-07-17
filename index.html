@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Beach Facilities Atlas</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;0,700;1,500&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root{
+  --ink:#16323F;
+  --paper:#F1ECDD;
+  --paper-line:#DDD3B8;
+  --sand:#C9B48C;
+  --buoy:#BF4E30;
+  --teal:#3C7A6E;
+  --muted:#8A8272;
+  --card:#FBF8F0;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:transparent;}
+body{
+  font-family:'Work Sans',sans-serif;
+  color:var(--ink);
+  background:var(--paper);
+  background-image:
+    linear-gradient(var(--paper-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--paper-line) 1px, transparent 1px);
+  background-size:28px 28px;
+  min-height:100vh;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 20px 60px;}
+
+/* ---------- HERO ---------- */
+.hero{
+  position:relative;
+  border:1px solid var(--ink);
+  padding:34px 28px 28px;
+  margin-bottom:26px;
+  background:var(--card);
+  overflow:hidden;
+}
+.hero::before, .hero::after{
+  content:"";
+  position:absolute;
+  width:14px;height:14px;
+  border:1.5px solid var(--ink);
+}
+.hero::before{top:8px;left:8px;border-right:none;border-bottom:none;}
+.hero::after{bottom:8px;right:8px;border-left:none;border-top:none;}
+.compass{
+  position:absolute;
+  right:-30px; top:50%; transform:translateY(-50%);
+  width:220px;height:220px;
+  opacity:0.10;
+  pointer-events:none;
+}
+.eyebrow{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11.5px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--buoy);
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:10px;
+}
+.eyebrow::before{content:"";width:20px;height:1px;background:var(--buoy);display:inline-block;}
+h1{
+  font-family:'Fraunces',serif;
+  font-weight:700;
+  font-size:clamp(30px,5vw,44px);
+  margin:0 0 8px;
+  letter-spacing:-0.01em;
+  max-width:640px;
+}
+.sub{
+  font-size:14.5px;
+  color:var(--muted);
+  max-width:520px;
+  line-height:1.55;
+  margin:0 0 16px;
+}
+.stat-row{
+  display:flex;gap:22px;flex-wrap:wrap;
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  color:var(--ink);
+}
+.stat-row b{font-size:17px;display:block;font-family:'Fraunces',serif;font-weight:600;}
+.stat-row span{color:var(--muted);letter-spacing:.04em;}
+
+/* ---------- TOOLBAR ---------- */
+.toolbar{
+  display:flex;gap:12px;flex-wrap:wrap;align-items:center;
+  margin-bottom:16px;
+}
+.search-box{
+  flex:1 1 260px;
+  position:relative;
+}
+.search-box input{
+  width:100%;
+  font-family:'Work Sans',sans-serif;
+  font-size:14px;
+  padding:11px 14px 11px 34px;
+  border:1px solid var(--ink);
+  background:var(--card);
+  color:var(--ink);
+  outline:none;
+}
+.search-box input::placeholder{color:var(--muted);}
+.search-box input:focus{box-shadow:0 0 0 2px var(--teal);}
+.search-box svg{
+  position:absolute;left:11px;top:50%;transform:translateY(-50%);
+  width:14px;height:14px;stroke:var(--muted);
+}
+.add-btn{
+  font-family:'JetBrains Mono',monospace;
+  font-size:12.5px;letter-spacing:.05em;
+  background:var(--buoy);
+  color:var(--paper);
+  border:1px solid var(--buoy);
+  padding:11px 18px;
+  cursor:pointer;
+  text-transform:uppercase;
+  transition:background .15s, color .15s;
+}
+.add-btn:hover{background:var(--ink);border-color:var(--ink);}
+.add-btn:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible{outline:2px solid var(--teal); outline-offset:2px;}
+
+/* ---------- LEGEND / FILTERS ---------- */
+.legend{
+  border:1px dashed var(--sand);
+  background:rgba(255,255,255,0.4);
+  padding:12px 14px;
+  margin-bottom:22px;
+  display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+}
+.legend-label{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10.5px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin-right:4px;
+}
+.chip{
+  display:flex;align-items:center;gap:6px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:11.5px;
+  border:1px solid var(--ink);
+  background:transparent;
+  color:var(--ink);
+  padding:5px 10px 5px 6px;
+  cursor:pointer;
+  border-radius:20px;
+  transition:all .12s;
+}
+.chip .code{
+  width:20px;height:20px;border-radius:50%;
+  border:1px solid var(--ink);
+  display:flex;align-items:center;justify-content:center;
+  font-size:8.5px;font-weight:700;
+}
+.chip.active{background:var(--ink);color:var(--paper);}
+.chip.active .code{background:var(--teal);border-color:var(--teal);color:#fff;}
+.chip:hover{border-color:var(--teal);}
+
+/* ---------- GRID ---------- */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:16px;
+}
+.card{
+  background:var(--card);
+  border:1px solid var(--ink);
+  padding:0;
+  position:relative;
+  display:flex;flex-direction:column;
+}
+.card-head{
+  padding:16px 16px 12px;
+  border-bottom:1px dashed var(--paper-line);
+}
+.card-loc{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10.5px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--teal);
+  margin-bottom:4px;
+}
+.card-name{
+  font-family:'Fraunces',serif;
+  font-weight:600;
+  font-size:19px;
+  line-height:1.25;
+}
+.card-head .distance-chip{display:block;margin-top:5px;}
+.card-badges{
+  padding:12px 16px;
+  display:flex;flex-wrap:wrap;gap:7px;
+  flex:1;
+}
+.stamp{
+  width:30px;height:30px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;font-weight:700;
+  border:1.4px solid var(--ink);
+  color:var(--ink);
+  transform:rotate(-3deg);
+  position:relative;
+}
+.stamp.osm-confirmed::after{
+  content:"";
+  position:absolute;top:-2px;right:-2px;
+  width:8px;height:8px;border-radius:50%;
+  background:var(--buoy);
+  border:1.5px solid var(--card);
+}
+.osm-status{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11.5px;
+  line-height:1.5;
+  margin:0 0 14px;
+  min-height:0;
+}
+.osm-status.success{color:var(--teal);}
+.osm-status.error{color:var(--buoy);}
+.geocode-status{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;
+  line-height:1.5;
+  margin:-8px 0 14px;
+  color:var(--muted);
+}
+.geocode-status.success{color:var(--teal);}
+.geocode-status.error{color:var(--buoy);}
+.osm-status a{color:var(--ink);}
+.legend-note{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10.5px;
+  color:var(--muted);
+  margin:-14px 0 20px;
+  display:flex;align-items:center;gap:6px;
+}
+.legend-note .dot{width:7px;height:7px;border-radius:50%;background:var(--buoy);display:inline-block;flex-shrink:0;}
+.stamp.on{
+  background:var(--teal);border-color:var(--teal);color:#fff;
+  box-shadow:0 0 0 2px rgba(60,122,110,0.18);
+}
+.stamp.off{
+  border-style:dashed;border-color:var(--sand);color:var(--sand);
+  transform:rotate(2deg);
+}
+.card-notes{
+  padding:0 16px 12px;
+  font-size:12.5px;
+  color:var(--muted);
+  line-height:1.5;
+  font-style:italic;
+}
+.card-foot{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 16px;
+  border-top:1px solid var(--paper-line);
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;
+}
+.flag-banner{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10.5px;
+  color:var(--buoy);
+  padding:8px 16px;
+  border-top:1px dashed var(--sand);
+  background:rgba(191,78,48,0.06);
+  line-height:1.5;
+}
+.flag-banner.strong{
+  background:rgba(191,78,48,0.14);
+  font-weight:700;
+}
+.flag-form{
+  display:none;
+  padding:10px 16px 14px;
+  border-top:1px dashed var(--paper-line);
+  background:rgba(255,255,255,0.5);
+}
+.flag-form.show{display:block;}
+.flag-form input{
+  width:100%;
+  font-family:'Work Sans',sans-serif;
+  font-size:12.5px;
+  padding:7px 9px;
+  border:1px solid var(--ink);
+  background:var(--card);
+  color:var(--ink);
+  outline:none;
+  margin-bottom:8px;
+}
+.flag-form-actions{display:flex;justify-content:flex-end;gap:12px;}
+.flag-form-actions button{
+  background:none;border:none;cursor:pointer;
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;letter-spacing:.04em;
+  text-transform:uppercase;
+  padding:2px 0;
+  border-bottom:1px solid transparent;
+}
+.flag-form-actions [data-act="flag-cancel"]{color:var(--muted);}
+.flag-form-actions [data-act="flag-submit"]{color:var(--buoy);}
+.flag-form-actions button:hover{border-bottom-color:currentColor;}
+.card-foot .actions button[data-act="clearflags"]{color:var(--teal);}
+
+.card-foot .actions{display:flex;gap:14px;flex-wrap:wrap;}
+.card-foot button{
+  background:none;border:none;cursor:pointer;
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;letter-spacing:.04em;
+  color:var(--muted);
+  padding:2px 0;
+  text-transform:uppercase;
+  border-bottom:1px solid transparent;
+}
+.card-foot button:hover{color:var(--ink);border-bottom-color:var(--ink);}
+.card-foot button.danger{color:var(--buoy);}
+.card-foot button.danger.confirm{color:#fff;background:var(--buoy);padding:2px 6px;}
+
+.empty{
+  border:1px dashed var(--sand);
+  padding:50px 20px;
+  text-align:center;
+  color:var(--muted);
+  font-family:'JetBrains Mono',monospace;
+  font-size:12.5px;
+  grid-column:1/-1;
+}
+.empty b{display:block;font-family:'Fraunces',serif;font-style:italic;font-size:20px;color:var(--ink);margin-bottom:8px;font-weight:500;}
+
+/* ---------- MODAL ---------- */
+.overlay{
+  position:fixed;inset:0;
+  background:rgba(22,50,63,0.55);
+  display:none;
+  align-items:flex-start;justify-content:center;
+  padding:40px 16px;
+  overflow-y:auto;
+  z-index:50;
+}
+.overlay.show{display:flex;}
+.modal{
+  background:var(--paper);
+  border:1px solid var(--ink);
+  max-width:480px;width:100%;
+  position:relative;
+  padding:26px 24px 22px;
+}
+.modal::before,.modal::after{
+  content:"";position:absolute;width:12px;height:12px;border:1.5px solid var(--ink);
+}
+.modal::before{top:7px;left:7px;border-right:none;border-bottom:none;}
+.modal::after{bottom:7px;right:7px;border-left:none;border-top:none;}
+.modal h2{
+  font-family:'Fraunces',serif;font-size:22px;font-weight:600;margin:0 0 4px;
+}
+.modal .modal-sub{font-size:12px;color:var(--muted);margin-bottom:18px;font-family:'JetBrains Mono',monospace;}
+.field{margin-bottom:14px;}
+.field label{
+  display:block;font-family:'JetBrains Mono',monospace;font-size:10.5px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;
+}
+.field input[type=text], .field textarea{
+  width:100%;padding:9px 10px;border:1px solid var(--ink);background:var(--card);
+  font-family:'Work Sans',sans-serif;font-size:14px;color:var(--ink);outline:none;
+}
+.field textarea{resize:vertical;min-height:56px;font-size:13px;}
+.field input:focus,.field textarea:focus{box-shadow:0 0 0 2px var(--teal);}
+.amenity-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:8px;
+}
+.amenity-toggle{
+  display:flex;align-items:center;gap:8px;
+  border:1px solid var(--paper-line);
+  padding:8px 10px;cursor:pointer;
+  font-size:12.5px;
+  user-select:none;
+}
+.amenity-toggle:hover{border-color:var(--teal);}
+.amenity-toggle.checked{border-color:var(--ink);background:rgba(60,122,110,0.08);}
+.amenity-toggle input{accent-color:var(--teal);}
+.modal-actions{
+  display:flex;justify-content:flex-end;gap:10px;margin-top:20px;
+}
+.btn-ghost{
+  background:none;border:1px solid var(--muted);color:var(--muted);
+  font-family:'JetBrains Mono',monospace;font-size:12px;padding:9px 16px;cursor:pointer;text-transform:uppercase;
+}
+.btn-ghost:hover{border-color:var(--ink);color:var(--ink);}
+.btn-solid{
+  background:var(--ink);border:1px solid var(--ink);color:var(--paper);
+  font-family:'JetBrains Mono',monospace;font-size:12px;padding:9px 18px;cursor:pointer;text-transform:uppercase;
+}
+.btn-solid:hover{background:var(--teal);border-color:var(--teal);}
+
+.footer-note{
+  margin-top:30px;text-align:center;font-family:'JetBrains Mono',monospace;
+  font-size:10.5px;color:var(--muted);letter-spacing:.04em;
+}
+
+/* ---------- DISCOVER PANEL ---------- */
+#discoverList{max-height:50vh;overflow-y:auto;margin:4px 0 4px;}
+.discover-item{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  padding:11px 0;
+  border-bottom:1px dashed var(--paper-line);
+}
+.discover-item:last-child{border-bottom:none;}
+.discover-item .meta{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.discover-item .meta .name{
+  font-family:'Fraunces',serif;font-weight:600;font-size:14.5px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.discover-item .meta .dist{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted);}
+.discover-item button{
+  flex-shrink:0;
+  font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.05em;
+  text-transform:uppercase;
+  background:none;border:1px solid var(--ink);color:var(--ink);
+  padding:7px 14px;cursor:pointer;
+}
+.discover-item button:hover{border-color:var(--teal);color:var(--teal);}
+.discover-item button.added{
+  border-color:var(--teal);color:var(--teal);
+  pointer-events:none;
+}
+.discover-item button:disabled{opacity:0.6;cursor:default;}
+
+/* ---------- LOCATE / DISTANCE ---------- */
+.locate-btn{
+  font-family:'JetBrains Mono',monospace;
+  font-size:12.5px;letter-spacing:.05em;
+  background:var(--card);
+  color:var(--ink);
+  border:1px solid var(--ink);
+  padding:11px 16px;
+  cursor:pointer;
+  text-transform:uppercase;
+  display:flex;align-items:center;gap:7px;
+  white-space:nowrap;
+}
+.locate-btn svg{width:14px;height:14px;stroke:var(--ink);flex-shrink:0;}
+.locate-btn:hover{border-color:var(--teal);color:var(--teal);}
+.locate-btn:hover svg{stroke:var(--teal);}
+.locate-btn.active{background:var(--teal);border-color:var(--teal);color:#fff;}
+.locate-btn.active svg{stroke:#fff;}
+.locate-status{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;color:var(--buoy);
+  margin:-8px 0 16px;
+  min-height:14px;
+}
+.distance-chip{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10.5px;
+  color:var(--teal);
+  letter-spacing:.03em;
+}
+.distance-chip.unknown{color:var(--muted);}
+
+/* ---------- RESPONSIVE / MOBILE ---------- */
+@media(max-width:680px){
+  .wrap{padding:16px 14px 44px;}
+  .hero{padding:22px 16px 18px;}
+  .compass{width:150px;height:150px;right:-40px;}
+  .stat-row{gap:16px;}
+  .toolbar{flex-direction:column;align-items:stretch;}
+  .search-box{flex:1 1 auto;}
+  .search-box input{padding-top:13px;padding-bottom:13px;font-size:16px;}
+  .add-btn, .locate-btn{width:100%;justify-content:center;padding:13px 16px;font-size:13px;}
+  .legend{gap:8px;padding:12px;}
+  .chip{padding:7px 12px 7px 6px;font-size:11.5px;}
+  .grid{grid-template-columns:1fr;gap:14px;}
+  .modal-actions{flex-direction:column-reverse;}
+  .modal-actions button{width:100%;padding:13px 16px;font-size:13px;}
+  .overlay{padding:0;align-items:flex-end;}
+  .modal{max-width:100%;max-height:92vh;overflow-y:auto;border-left:none;border-right:none;border-bottom:none;}
+}
+@media(max-width:480px){
+  .amenity-grid{grid-template-columns:1fr;}
+  .hero{padding:24px 18px 20px;}
+  h1{font-size:26px;}
+  .stat-row{gap:14px 20px;}
+  .card-badges{gap:6px;}
+  .stamp{width:28px;height:28px;font-size:8.5px;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <svg class="compass" viewBox="0 0 200 200">
+      <circle cx="100" cy="100" r="90" fill="none" stroke="#16323F" stroke-width="1"/>
+      <circle cx="100" cy="100" r="60" fill="none" stroke="#16323F" stroke-width="1"/>
+      <line x1="100" y1="4" x2="100" y2="196" stroke="#16323F" stroke-width="1"/>
+      <line x1="4" y1="100" x2="196" y2="100" stroke="#16323F" stroke-width="1"/>
+      <line x1="27" y1="27" x2="173" y2="173" stroke="#16323F" stroke-width="0.6"/>
+      <line x1="173" y1="27" x2="27" y2="173" stroke="#16323F" stroke-width="0.6"/>
+      <polygon points="100,16 108,100 100,90 92,100" fill="#16323F"/>
+      <text x="100" y="30" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#16323F">N</text>
+    </svg>
+    <div class="eyebrow">Nova Scotia Coastal Survey &mdash; Community Register</div>
+    <h1>Nova Scotia Beach Facilities Atlas</h1>
+    <p class="sub">Working toward the most complete, accurate reference for washrooms, change rooms, showers and other shore-side amenities across Nova Scotia — one confirmed station at a time.</p>
+    <div class="stat-row">
+      <div><b id="statTotal">0</b><span>stations charted</span></div>
+      <div><b id="statFull">0</b><span>fully equipped</span></div>
+      <div><b id="statVerified">0</b><span>OSM-verified</span></div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" placeholder="Search a beach or area in Nova Scotia&hellip;">
+    </div>
+    <button class="locate-btn" id="locateBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      Near me
+    </button>
+    <button class="locate-btn" id="regionBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.3"/></svg>
+      My region
+    </button>
+    <button class="locate-btn" id="refreshBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
+      Sync
+    </button>
+    <button class="locate-btn" id="discoverBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><path d="M11 8v3l2 2"/></svg>
+      Discover
+    </button>
+    <button class="add-btn" id="openAddBtn">+ Log a station</button>
+  </div>
+  <div class="locate-status" id="locateStatus"></div>
+
+  <div class="legend" id="legend"></div>
+  <div class="legend-note"><span class="dot"></span> marks parking/toilets confirmed via OpenStreetMap — everything else is entered by hand</div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="footer-note">A focused, community-verified atlas for Nova Scotia — anyone with this app can add, edit, or remove entries. Tap Sync to pull in what others have logged.</div>
+</div>
+
+<div class="overlay" id="discoverOverlay">
+  <div class="modal" style="max-width:480px;">
+    <h2>Discover beaches</h2>
+    <div class="modal-sub">Search OpenStreetMap for real beaches in any part of Nova Scotia — useful for sweeping the whole province area by area, not just wherever you're standing.</div>
+    <div class="field" style="display:flex;gap:8px;">
+      <input type="text" id="discoverAreaInput" placeholder="e.g. Yarmouth, NS or Cape Breton" style="flex:1;">
+      <button type="button" class="btn-solid" id="discoverAreaBtn" style="white-space:nowrap;">Search area</button>
+    </div>
+    <button type="button" class="btn-ghost" id="discoverNearMeBtn" style="width:100%;margin-bottom:14px;">Or use my current location</button>
+    <div class="modal-sub" id="discoverSub"></div>
+    <div id="discoverList"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" id="discoverCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <form class="modal" id="beachForm">
+    <h2 id="modalTitle">Log a station</h2>
+    <div class="modal-sub" id="modalSub">Record what's on hand at this beach.</div>
+
+    <div class="field">
+      <label for="fName">Beach name</label>
+      <input type="text" id="fName" required placeholder="e.g. Lawrencetown Beach">
+    </div>
+    <div class="field">
+      <label for="fContributor">Your name (optional)</label>
+      <input type="text" id="fContributor" placeholder="e.g. Priya — shown on the entry">
+    </div>
+    <div class="field">
+      <label for="fLoc">Address</label>
+      <input type="text" id="fLoc" placeholder="e.g. 3213 Lawrencetown Rd, East Lawrencetown, NS">
+    </div>
+    <div class="geocode-status" id="geocodeStatus"></div>
+    <button type="button" class="btn-ghost" id="pinLocationBtn" style="margin-bottom:14px;width:100%;">Use my current location</button>
+    <button type="button" class="btn-ghost" id="osmLookupBtn" style="margin-bottom:6px;width:100%;border-color:var(--teal);color:var(--teal);">Check OpenStreetMap for parking &amp; toilets</button>
+    <div class="osm-status" id="osmStatus"></div>
+    <div class="field">
+      <label>Amenities on hand</label>
+      <div class="amenity-grid" id="amenityGrid"></div>
+    </div>
+    <div class="field">
+      <label for="fNotes">Field notes</label>
+      <textarea id="fNotes" placeholder="Anything worth remembering &mdash; hours, fees, condition&hellip;"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" id="cancelBtn">Cancel</button>
+      <button type="submit" class="btn-solid" id="saveBtn">Save station</button>
+    </div>
+  </form>
+</div>
+
+<script>
+const AMENITIES = [
+  {key:'washrooms', code:'WC', label:'Washrooms'},
+  {key:'changeRooms', code:'CR', label:'Change rooms'},
+  {key:'showers', code:'SH', label:'Showers'},
+  {key:'parking', code:'PK', label:'Parking'},
+  {key:'lifeguard', code:'LG', label:'Lifeguard'},
+  {key:'accessible', code:'AC', label:'Accessible'},
+  {key:'petFriendly', code:'PET', label:'Pet friendly'},
+  {key:'food', code:'FD', label:'Food nearby'},
+];
+
+// ------------------------------------------------------------
+// SUPABASE CONFIG — paste your own project values here.
+// Found under: Supabase Dashboard → Project Settings → API
+// ------------------------------------------------------------
+const SUPABASE_URL = 'https://lbitesictendwkerrryj.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_Dhdqckdaaph45j1HiFzkgA_XN1-Ke2Y';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let beaches = [];
+let activeFilters = new Set();
+let searchTerm = '';
+let editingId = null;
+let userCoords = null;
+let sortByDistance = false;
+let regionFilterActive = false;
+const REGION_RADIUS_KM = 500;
+let osmFetchResult = null;
+let localOwnerId = null;
+
+// Signs the visitor in anonymously so the database can tell entries
+// apart by real, unforgeable owner ids — no email or password needed.
+async function getOrCreateOwnerId(){
+  const { data: { session } } = await sb.auth.getSession();
+  if(session && session.user) return session.user.id;
+
+  const { data, error } = await sb.auth.signInAnonymously();
+  if(error){
+    console.error('Could not sign in', error);
+    return null;
+  }
+  return data.user.id;
+}
+
+function haversineKm(lat1, lon1, lat2, lon2){
+  const R = 6371;
+  const dLat = (lat2-lat1) * Math.PI/180;
+  const dLon = (lon2-lon1) * Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function setLocateStatus(msg, isError){
+  const el = document.getElementById('locateStatus');
+  el.textContent = msg || '';
+  el.style.color = isError ? 'var(--buoy)' : 'var(--teal)';
+}
+
+function toggleNearMe(){
+  const btn = document.getElementById('locateBtn');
+  if(sortByDistance){
+    sortByDistance = false;
+    btn.classList.remove('active');
+    btn.lastChild.textContent = ' Near me';
+    setLocateStatus(regionFilterActive ? 'Showing only stations within your region.' : '');
+    renderGrid();
+    return;
+  }
+  if(userCoords){
+    sortByDistance = true;
+    btn.classList.add('active');
+    setLocateStatus('Showing stations sorted by distance from you.');
+    renderGrid();
+    return;
+  }
+  if(!navigator.geolocation){
+    setLocateStatus('Location services are not available in this browser.', true);
+    return;
+  }
+  btn.lastChild.textContent = ' Locating…';
+  setLocateStatus('Requesting your location…');
+  navigator.geolocation.getCurrentPosition(
+    (pos)=>{
+      userCoords = {lat:pos.coords.latitude, lng:pos.coords.longitude};
+      sortByDistance = true;
+      btn.classList.add('active');
+      btn.lastChild.textContent = ' Near me';
+      setLocateStatus('Showing stations sorted by distance from you.');
+      renderGrid();
+    },
+    (err)=>{
+      btn.lastChild.textContent = ' Near me';
+      setLocateStatus('Could not get your location — check your browser\'s location permission and try again.', true);
+    },
+    {enableHighAccuracy:true, timeout:10000}
+  );
+}
+document.getElementById('locateBtn').addEventListener('click', toggleNearMe);
+
+function toggleRegionFilter(){
+  const btn = document.getElementById('regionBtn');
+  if(regionFilterActive){
+    regionFilterActive = false;
+    btn.classList.remove('active');
+    setLocateStatus(sortByDistance ? 'Showing stations sorted by distance from you.' : '');
+    renderGrid();
+    return;
+  }
+  if(userCoords){
+    regionFilterActive = true;
+    btn.classList.add('active');
+    setLocateStatus(`Showing only stations within ${REGION_RADIUS_KM}km of you — entries with no address on file still show.`);
+    renderGrid();
+    return;
+  }
+  if(!navigator.geolocation){
+    setLocateStatus('Location services are not available in this browser.', true);
+    return;
+  }
+  btn.lastChild.textContent = ' Locating…';
+  setLocateStatus('Requesting your location…');
+  navigator.geolocation.getCurrentPosition(
+    (pos)=>{
+      userCoords = {lat:pos.coords.latitude, lng:pos.coords.longitude};
+      regionFilterActive = true;
+      btn.classList.add('active');
+      btn.lastChild.textContent = ' My region';
+      setLocateStatus(`Showing only stations within ${REGION_RADIUS_KM}km of you — entries with no address on file still show.`);
+      renderGrid();
+    },
+    (err)=>{
+      btn.lastChild.textContent = ' My region';
+      setLocateStatus('Could not get your location — check your browser\'s location permission and try again.', true);
+    },
+    {enableHighAccuracy:true, timeout:10000}
+  );
+}
+document.getElementById('regionBtn').addEventListener('click', toggleRegionFilter);
+
+let draftLat = null;
+let draftLng = null;
+let draftGeocodedAddress = null;
+
+async function geocodeAddress(address){
+  const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(address), {
+    headers: {'Accept-Language':'en'}
+  });
+  if(!res.ok) throw new Error('Geocoding service unavailable');
+  const results = await res.json();
+  if(!results || results.length === 0) throw new Error('No match found for that address');
+  return {lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon), display: results[0].display_name};
+}
+
+async function reverseGeocode(lat, lng){
+  const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
+    headers: {'Accept-Language':'en'}
+  });
+  if(!res.ok) throw new Error('Reverse geocoding unavailable');
+  const data = await res.json();
+  if(!data || !data.display_name) throw new Error('Could not resolve an address');
+  return data.display_name;
+}
+
+// Resolves the address field to lat/lng, reusing the cached result if the
+// address text hasn't changed since the last successful lookup.
+async function ensureGeocoded(){
+  const address = document.getElementById('fLoc').value.trim();
+  const statusEl = document.getElementById('geocodeStatus');
+
+  if(!address){
+    draftLat = null; draftLng = null; draftGeocodedAddress = null;
+    statusEl.className = 'geocode-status';
+    statusEl.textContent = '';
+    return false;
+  }
+  if(draftGeocodedAddress === address && draftLat !== null) return true;
+
+  statusEl.className = 'geocode-status';
+  statusEl.textContent = 'Locating address…';
+  try{
+    const result = await geocodeAddress(address);
+    draftLat = result.lat; draftLng = result.lng; draftGeocodedAddress = address;
+    statusEl.className = 'geocode-status success';
+    statusEl.textContent = `Located: ${result.display.split(',').slice(0,3).join(',')}`;
+    return true;
+  }catch(err){
+    draftLat = null; draftLng = null; draftGeocodedAddress = null;
+    statusEl.className = 'geocode-status error';
+    statusEl.textContent = "Couldn't pinpoint that address — it can still be saved, just without map/distance features.";
+    return false;
+  }
+}
+
+document.getElementById('pinLocationBtn').addEventListener('click', ()=>{
+  if(!navigator.geolocation){
+    alert('Location services are not available in this browser.');
+    return;
+  }
+  const btn = document.getElementById('pinLocationBtn');
+  const statusEl = document.getElementById('geocodeStatus');
+  btn.disabled = true;
+  btn.textContent = 'Locating…';
+  navigator.geolocation.getCurrentPosition(
+    async (pos)=>{
+      const lat = pos.coords.latitude, lng = pos.coords.longitude;
+      draftLat = lat; draftLng = lng;
+      try{
+        const address = await reverseGeocode(lat, lng);
+        document.getElementById('fLoc').value = address;
+        draftGeocodedAddress = address;
+        statusEl.className = 'geocode-status success';
+        statusEl.textContent = 'Address filled in from your current location.';
+      }catch(err){
+        const fallback = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        document.getElementById('fLoc').value = fallback;
+        draftGeocodedAddress = fallback;
+        statusEl.className = 'geocode-status error';
+        statusEl.textContent = "Got your coordinates, but couldn't turn them into an address — feel free to edit the text.";
+      }
+      btn.disabled = false;
+      btn.textContent = 'Use my current location';
+    },
+    ()=>{
+      btn.disabled = false;
+      btn.textContent = 'Use my current location';
+      alert('Could not get your location — check your browser\'s location permission and try again.');
+    }
+  );
+});
+
+async function queryOverpassFacilities(lat, lng){
+  const query = `[out:json][timeout:25];(node["amenity"="toilets"](around:400,${lat},${lng});node["amenity"="parking"](around:400,${lat},${lng});way["amenity"="parking"](around:400,${lat},${lng}););out center 30;`;
+  const res = await fetch('https://overpass-api.de/api/interpreter', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'data=' + encodeURIComponent(query)
+  });
+  if(!res.ok) throw new Error('Overpass request failed');
+  const data = await res.json();
+  const els = data.elements || [];
+  const toiletCount = els.filter(e=>e.tags && e.tags.amenity === 'toilets').length;
+  const parkingCount = els.filter(e=>e.tags && e.tags.amenity === 'parking').length;
+  return {
+    washrooms: toiletCount > 0,
+    parking: parkingCount > 0,
+    toiletCount, parkingCount,
+    fetchedAt: Date.now()
+  };
+}
+
+async function lookupOSMFacilities(){
+  const statusEl = document.getElementById('osmStatus');
+  const btn = document.getElementById('osmLookupBtn');
+
+  const geocoded = await ensureGeocoded();
+  if(!geocoded || draftLat === null){
+    statusEl.className = 'osm-status error';
+    statusEl.textContent = 'Add an address that can be located first (or use your current location).';
+    return;
+  }
+  const lat = draftLat, lng = draftLng;
+
+  btn.disabled = true;
+  btn.textContent = 'Checking OpenStreetMap…';
+  statusEl.className = 'osm-status';
+  statusEl.textContent = '';
+
+  try{
+    const result = await queryOverpassFacilities(lat, lng);
+    osmFetchResult = result;
+
+    if(result.toiletCount > 0){
+      const cb = document.getElementById('am_washrooms');
+      if(cb && !cb.checked){ cb.checked = true; cb.dispatchEvent(new Event('change')); }
+    }
+    if(result.parkingCount > 0){
+      const cb = document.getElementById('am_parking');
+      if(cb && !cb.checked){ cb.checked = true; cb.dispatchEvent(new Event('change')); }
+    }
+
+    statusEl.className = 'osm-status success';
+    statusEl.textContent = `Found ${result.toiletCount} toilet${result.toiletCount===1?'':'s'} and ${result.parkingCount} parking area${result.parkingCount===1?'':'s'} within 400m on OpenStreetMap. Checkboxes updated below — review before saving.`;
+  }catch(err){
+    const query = `[out:json][timeout:25];(node["amenity"="toilets"](around:400,${lat},${lng});node["amenity"="parking"](around:400,${lat},${lng});way["amenity"="parking"](around:400,${lat},${lng}););out center 30;`;
+    const turboUrl = 'https://overpass-turbo.eu/?Q=' + encodeURIComponent(query) + '&R';
+    statusEl.className = 'osm-status error';
+    statusEl.innerHTML = `Couldn't reach OpenStreetMap from here. <a href="${turboUrl}" target="_blank" rel="noopener">Open this search in a new tab</a> and enter what you find by hand instead.`;
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Check OpenStreetMap for parking & toilets';
+  }
+}
+document.getElementById('osmLookupBtn').addEventListener('click', lookupOSMFacilities);
+
+// ------------------------------------------------------------
+// Discover nearby beaches — free lookup against OpenStreetMap's
+// natural=beach tag, no API key or billing involved.
+// ------------------------------------------------------------
+async function queryNearbyBeaches(lat, lng, radiusM){
+  const query = `[out:json][timeout:25];(node["natural"="beach"](around:${radiusM},${lat},${lng});way["natural"="beach"](around:${radiusM},${lat},${lng});relation["natural"="beach"](around:${radiusM},${lat},${lng}););out center 60;`;
+  const res = await fetch('https://overpass-api.de/api/interpreter', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'data=' + encodeURIComponent(query)
+  });
+  if(!res.ok) throw new Error('Overpass request failed');
+  const data = await res.json();
+  const els = data.elements || [];
+  return els.map(e=>{
+    const elat = e.type === 'node' ? e.lat : (e.center ? e.center.lat : null);
+    const elng = e.type === 'node' ? e.lon : (e.center ? e.center.lon : null);
+    return {
+      name: (e.tags && e.tags.name) ? e.tags.name : 'Unnamed beach',
+      lat: elat, lng: elng,
+      dist: (elat != null && elng != null) ? haversineKm(lat, lng, elat, elng) : Infinity
+    };
+  }).filter(b => b.lat != null && b.lng != null)
+    .sort((a,b) => a.dist - b.dist);
+}
+
+function dedupeBeachCandidates(list){
+  const kept = [];
+  for(const b of list){
+    const dupe = kept.some(k =>
+      (k.name.toLowerCase() === b.name.toLowerCase() && b.name !== 'Unnamed beach') ||
+      haversineKm(k.lat, k.lng, b.lat, b.lng) < 0.3
+    );
+    if(!dupe) kept.push(b);
+  }
+  return kept;
+}
+
+function isAlreadyLogged(candidate){
+  return beaches.some(b =>
+    typeof b.lat === 'number' && typeof b.lng === 'number' &&
+    haversineKm(b.lat, b.lng, candidate.lat, candidate.lng) < 0.3
+  );
+}
+
+function openDiscoverPanel(){
+  document.getElementById('discoverOverlay').classList.add('show');
+  document.getElementById('discoverList').innerHTML = '';
+  document.getElementById('discoverSub').textContent = '';
+  document.getElementById('discoverAreaInput').value = '';
+}
+
+const DISCOVER_RADIUS_M = 40000; // 40km — wide enough to sweep a good stretch of coast per search
+
+async function runDiscoverSearch(lat, lng, areaLabel){
+  const sub = document.getElementById('discoverSub');
+  const list = document.getElementById('discoverList');
+  list.innerHTML = '';
+  sub.textContent = `Searching OpenStreetMap for beaches within 40km of ${areaLabel}…`;
+
+  try{
+    const raw = await queryNearbyBeaches(lat, lng, DISCOVER_RADIUS_M);
+    const candidates = dedupeBeachCandidates(raw).filter(c => !isAlreadyLogged(c)).slice(0, 20);
+
+    if(candidates.length === 0){
+      sub.textContent = `No unlisted beaches found on OpenStreetMap within 40km of ${areaLabel}. Try a different area, or add one by hand with "Log a station."`;
+      return;
+    }
+
+    sub.textContent = `Found ${candidates.length} beach${candidates.length===1?'':'es'} near ${areaLabel} not yet in your atlas:`;
+    list.innerHTML = candidates.map((c,i)=>`
+      <div class="discover-item">
+        <div class="meta">
+          <span class="name">${escapeHtml(c.name)}</span>
+          <span class="dist">${c.dist.toFixed(1)} km from search point</span>
+        </div>
+        <button type="button" data-idx="${i}">Add</button>
+      </div>
+    `).join('');
+    list.querySelectorAll('button[data-idx]').forEach(btn=>{
+      btn.addEventListener('click', ()=> addDiscoveredBeach(candidates[parseInt(btn.dataset.idx)], btn));
+    });
+  }catch(err){
+    sub.textContent = "Couldn't reach OpenStreetMap right now. Try again in a moment.";
+  }
+}
+
+document.getElementById('discoverAreaBtn').addEventListener('click', async ()=>{
+  const areaBtn = document.getElementById('discoverAreaBtn');
+  const query = document.getElementById('discoverAreaInput').value.trim();
+  const sub = document.getElementById('discoverSub');
+  if(!query){
+    sub.textContent = 'Type an area name first, e.g. "Yarmouth, NS" or "Cape Breton".';
+    return;
+  }
+  areaBtn.disabled = true;
+  areaBtn.textContent = 'Locating…';
+  sub.textContent = `Looking up "${query}"…`;
+  try{
+    const result = await geocodeAddress(query + ', Nova Scotia, Canada');
+    await runDiscoverSearch(result.lat, result.lng, query);
+  }catch(err){
+    sub.textContent = `Couldn't find "${query}" — try being more specific, e.g. adding a nearby town name.`;
+  }
+  areaBtn.disabled = false;
+  areaBtn.textContent = 'Search area';
+});
+
+document.getElementById('discoverNearMeBtn').addEventListener('click', ()=>{
+  const btn = document.getElementById('discoverNearMeBtn');
+  const sub = document.getElementById('discoverSub');
+  if(!navigator.geolocation){
+    sub.textContent = 'Location services are not available in this browser.';
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Locating…';
+  sub.textContent = 'Getting your location…';
+  navigator.geolocation.getCurrentPosition(
+    async (pos)=>{
+      btn.disabled = false;
+      btn.textContent = 'Or use my current location';
+      await runDiscoverSearch(pos.coords.latitude, pos.coords.longitude, 'your location');
+    },
+    ()=>{
+      btn.disabled = false;
+      btn.textContent = 'Or use my current location';
+      sub.textContent = "Could not get your location — check your browser's location permission and try again.";
+    },
+    {enableHighAccuracy:true, timeout:10000}
+  );
+});
+
+async function addDiscoveredBeach(candidate, btn){
+  btn.disabled = true;
+  btn.textContent = 'Adding…';
+
+  let address;
+  try{
+    address = await reverseGeocode(candidate.lat, candidate.lng);
+  }catch(e){
+    address = `${candidate.lat.toFixed(4)}, ${candidate.lng.toFixed(4)}`;
+  }
+
+  let facilityResult = null;
+  try{
+    facilityResult = await queryOverpassFacilities(candidate.lat, candidate.lng);
+  }catch(e){ /* proceed without facility data */ }
+
+  const amenities = {washrooms:false,changeRooms:false,showers:false,parking:false,lifeguard:false,accessible:false,petFriendly:false,food:false};
+  if(facilityResult){
+    amenities.washrooms = facilityResult.washrooms;
+    amenities.parking = facilityResult.parking;
+  }
+
+  const draft = {
+    name: candidate.name,
+    location: address,
+    lat: candidate.lat, lng: candidate.lng,
+    notes: 'Added via OpenStreetMap discovery — only parking/toilets are confirmed so far.',
+    amenities,
+    contributedBy: undefined,
+    osmSourced: facilityResult || undefined,
+    ownerId: localOwnerId,
+    flags: []
+  };
+
+  const saved = await saveBeach(draft, true);
+  if(saved){
+    saved.flags = [];
+    beaches.push(saved);
+    renderGrid();
+    btn.textContent = 'Added ✓';
+    btn.classList.add('added');
+  } else {
+    btn.disabled = false;
+    btn.textContent = 'Add';
+  }
+}
+
+document.getElementById('discoverBtn').addEventListener('click', openDiscoverPanel);
+document.getElementById('discoverCloseBtn').addEventListener('click', ()=>{
+  document.getElementById('discoverOverlay').classList.remove('show');
+});
+document.getElementById('discoverOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'discoverOverlay') document.getElementById('discoverOverlay').classList.remove('show');
+});
+
+const seedData = () => ([
+  {id:'seed1', name:'Lawrencetown Beach', location:'Nova Scotia, Canada', lat:44.634, lng:-63.364,
+    amenities:{washrooms:true,changeRooms:true,showers:false,parking:true,lifeguard:true,accessible:false,petFriendly:false,food:false},
+    notes:'Surf beach, lifeguards on duty in summer months only.'},
+  {id:'seed2', name:'Rainbow Haven Beach', location:'Nova Scotia, Canada', lat:44.628, lng:-63.457,
+    amenities:{washrooms:true,changeRooms:true,showers:false,parking:true,lifeguard:true,accessible:true,petFriendly:false,food:false},
+    notes:'Boardwalk to the beach, calm water good for families.'},
+  {id:'seed3', name:'Queensland Beach', location:'Nova Scotia, Canada', lat:44.475, lng:-63.936,
+    amenities:{washrooms:true,changeRooms:false,showers:false,parking:true,lifeguard:true,accessible:false,petFriendly:true,food:false},
+    notes:'Long sandy stretch on St. Margarets Bay, popular with dogs off-season.'},
+]);
+
+function toRow(b){
+  return {
+    name: b.name,
+    location: b.location || null,
+    lat: typeof b.lat === 'number' ? b.lat : null,
+    lng: typeof b.lng === 'number' ? b.lng : null,
+    notes: b.notes || null,
+    contributed_by: b.contributedBy || null,
+    amenities: b.amenities || {},
+    osm_sourced: b.osmSourced || null,
+    owner_id: b.ownerId || null
+  };
+}
+
+function fromRow(row, flags){
+  return {
+    id: row.id,
+    name: row.name,
+    location: row.location,
+    lat: row.lat,
+    lng: row.lng,
+    notes: row.notes,
+    contributedBy: row.contributed_by,
+    amenities: row.amenities || {},
+    osmSourced: row.osm_sourced,
+    ownerId: row.owner_id,
+    flags: flags || [],
+    addedAt: row.added_at ? new Date(row.added_at).getTime() : Date.now()
+  };
+}
+
+async function loadData(){
+  try{
+    let { data: rows, error } = await sb.from('beaches').select('*').order('added_at', {ascending:true});
+    if(error) throw error;
+
+    if(!rows || rows.length === 0){
+      const seeds = seedData().map(b => toRow({...b, ownerId: localOwnerId}));
+      const { data: inserted, error: insErr } = await sb.from('beaches').insert(seeds).select();
+      if(insErr) throw insErr;
+      rows = inserted || [];
+    }
+
+    const { data: flagRows, error: flagErr } = await sb.from('beach_flags').select('*').order('created_at', {ascending:true});
+    if(flagErr) throw flagErr;
+    const flagsByBeach = {};
+    (flagRows || []).forEach(f=>{
+      (flagsByBeach[f.beach_id] ||= []).push({id:f.id, reason:f.reason, at:new Date(f.created_at).getTime()});
+    });
+
+    beaches = rows.map(row => fromRow(row, flagsByBeach[row.id]));
+  }catch(e){
+    console.error('Could not load beaches from Supabase', e);
+    beaches = [];
+    alert('Could not load data from the backend. Check the Supabase URL/key at the top of the file and confirm schema.sql has been run.');
+  }
+}
+
+// Saves a beach (insert if new, update if it already has a database id).
+// Returns the saved record (with server-assigned id) or null on failure.
+async function saveBeach(b, isNew){
+  const row = toRow(b);
+  if(isNew){
+    const { data, error } = await sb.from('beaches').insert(row).select().single();
+    if(error){ console.error(error); alert('Could not save this station: ' + error.message); return null; }
+    return fromRow(data, []);
+  } else {
+    const { data, error } = await sb.from('beaches').update(row).eq('id', b.id).select().single();
+    if(error){ console.error(error); alert('Could not save changes: ' + error.message); return null; }
+    return fromRow(data, b.flags || []);
+  }
+}
+
+async function addFlag(beachId, reason){
+  const { data, error } = await sb.from('beach_flags')
+    .insert({beach_id: beachId, reason: reason || null, flagged_by: localOwnerId})
+    .select().single();
+  if(error){ console.error(error); alert('Could not submit flag: ' + error.message); return null; }
+  return {id: data.id, reason: data.reason, at: new Date(data.created_at).getTime()};
+}
+
+async function clearFlags(beachId){
+  const { error } = await sb.from('beach_flags').delete().eq('beach_id', beachId);
+  if(error){ console.error(error); alert('Could not clear flags: ' + error.message); }
+}
+
+async function deleteBeachRemote(id){
+  const { error } = await sb.from('beaches').delete().eq('id', id);
+  if(error){ console.error(error); alert('Could not delete this station: ' + error.message); }
+}
+
+function renderLegend(){
+  const legend = document.getElementById('legend');
+  legend.innerHTML = '<span class="legend-label">Filter by</span>';
+  AMENITIES.forEach(a=>{
+    const chip = document.createElement('button');
+    chip.type='button';
+    chip.className = 'chip' + (activeFilters.has(a.key) ? ' active' : '');
+    chip.innerHTML = `<span class="code">${a.code}</span>${a.label}`;
+    chip.onclick = ()=>{
+      if(activeFilters.has(a.key)) activeFilters.delete(a.key);
+      else activeFilters.add(a.key);
+      renderLegend();
+      renderGrid();
+    };
+    legend.appendChild(chip);
+  });
+}
+
+function matchesFilters(b){
+  for(const key of activeFilters){
+    if(!b.amenities[key]) return false;
+  }
+  return true;
+}
+function matchesSearch(b){
+  if(!searchTerm) return true;
+  const t = searchTerm.toLowerCase();
+  return b.name.toLowerCase().includes(t) || (b.location||'').toLowerCase().includes(t);
+}
+
+function renderStats(){
+  document.getElementById('statTotal').textContent = beaches.length;
+  const full = beaches.filter(b=>AMENITIES.every(a=>b.amenities[a.key])).length;
+  document.getElementById('statFull').textContent = full;
+  const verified = beaches.filter(b=> b.osmSourced && (b.osmSourced.washrooms || b.osmSourced.parking)).length;
+  document.getElementById('statVerified').textContent = verified;
+}
+
+function renderGrid(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  let visible = beaches.filter(b=>matchesFilters(b) && matchesSearch(b));
+
+  if(regionFilterActive && userCoords){
+    visible = visible.filter(b=>{
+      if(typeof b.lat !== 'number' || typeof b.lng !== 'number') return true;
+      return haversineKm(userCoords.lat, userCoords.lng, b.lat, b.lng) <= REGION_RADIUS_KM;
+    });
+  }
+
+  if(sortByDistance && userCoords){
+    visible = visible.map(b=>{
+      const hasCoords = typeof b.lat === 'number' && typeof b.lng === 'number';
+      const dist = hasCoords ? haversineKm(userCoords.lat, userCoords.lng, b.lat, b.lng) : Infinity;
+      return {b, dist};
+    }).sort((x,y)=>x.dist - y.dist).map(x=>x.b);
+  }
+
+  if(visible.length===0){
+    grid.innerHTML = `<div class="empty"><b>Uncharted waters</b>No stations match the current search or filters yet.</div>`;
+    renderStats();
+    return;
+  }
+
+  visible.forEach(b=>{
+    const card = document.createElement('div');
+    card.className = 'card';
+    const badgesHtml = AMENITIES.map(a=>{
+      const on = !!b.amenities[a.key];
+      const osmConfirmed = b.osmSourced && (a.key === 'washrooms' || a.key === 'parking') && b.osmSourced[a.key];
+      const cls = 'stamp ' + (on?'on':'off') + (osmConfirmed ? ' osm-confirmed' : '');
+      const title = a.label + (on?'':' — not available') + (osmConfirmed ? ' · confirmed via OpenStreetMap' : '');
+      return `<div class="${cls}" title="${title}">${a.code}</div>`;
+    }).join('');
+    const hasCoords = typeof b.lat === 'number' && typeof b.lng === 'number';
+    let distanceHtml = '';
+    if(sortByDistance && userCoords){
+      distanceHtml = hasCoords
+        ? `<span class="distance-chip">${haversineKm(userCoords.lat, userCoords.lng, b.lat, b.lng).toFixed(1)} km away</span>`
+        : `<span class="distance-chip unknown">no coordinates on file</span>`;
+    }
+    const isOwner = !b.ownerId || b.ownerId === localOwnerId;
+    const flagCount = (b.flags || []).length;
+    const lastFlagReason = flagCount ? b.flags[b.flags.length-1].reason : '';
+
+    let actionsHtml;
+    if(isOwner){
+      actionsHtml = `
+        <button data-act="edit">Edit</button>
+        <button data-act="delete" class="danger">Delete</button>
+        ${flagCount ? `<button data-act="clearflags">Clear flags (${flagCount})</button>` : ''}
+      `;
+    } else {
+      actionsHtml = `<button data-act="flag">Flag${flagCount ? ' ('+flagCount+')' : ''}</button>`;
+    }
+
+    const flagBannerHtml = flagCount ? `
+      <div class="flag-banner ${flagCount>=3?'strong':''}">
+        &#9888; Flagged by ${flagCount} contributor${flagCount===1?'':'s'}${lastFlagReason ? ' — "'+escapeHtml(lastFlagReason)+'"' : ''}
+      </div>` : '';
+
+    card.innerHTML = `
+      <div class="card-head">
+        <div class="card-loc">${b.location ? b.location : 'Location unlisted'}</div>
+        <div class="card-name">${escapeHtml(b.name)}</div>
+        ${distanceHtml}
+      </div>
+      <div class="card-badges">${badgesHtml}</div>
+      ${b.notes ? `<div class="card-notes">"${escapeHtml(b.notes)}"</div>` : ''}
+      ${flagBannerHtml}
+      <div class="card-foot">
+        <span>${b.contributedBy ? 'Logged by ' + escapeHtml(b.contributedBy) : 'STATION'}</span>
+        <div class="actions">${actionsHtml}</div>
+      </div>
+      <div class="flag-form" id="flagform-${b.id}">
+        <input type="text" placeholder="What's wrong? (optional)" maxlength="140">
+        <div class="flag-form-actions">
+          <button type="button" data-act="flag-cancel">Cancel</button>
+          <button type="button" data-act="flag-submit">Submit flag</button>
+        </div>
+      </div>
+    `;
+
+    if(isOwner){
+      card.querySelector('[data-act="edit"]').onclick = ()=> openModal(b.id);
+      const delBtn = card.querySelector('[data-act="delete"]');
+      delBtn.onclick = async ()=>{
+        if(delBtn.classList.contains('confirm')){
+          delBtn.disabled = true;
+          await deleteBeachRemote(b.id);
+          beaches = beaches.filter(x=>x.id!==b.id);
+          renderGrid();
+        } else {
+          delBtn.classList.add('confirm');
+          delBtn.textContent = 'Confirm?';
+          setTimeout(()=>{
+            delBtn.classList.remove('confirm');
+            delBtn.textContent = 'Delete';
+          }, 3000);
+        }
+      };
+      const clearBtn = card.querySelector('[data-act="clearflags"]');
+      if(clearBtn){
+        clearBtn.onclick = async ()=>{
+          clearBtn.disabled = true;
+          await clearFlags(b.id);
+          b.flags = [];
+          renderGrid();
+        };
+      }
+    } else {
+      const flagForm = card.querySelector(`#flagform-${b.id}`);
+      card.querySelector('[data-act="flag"]').onclick = ()=> flagForm.classList.add('show');
+      card.querySelector('[data-act="flag-cancel"]').onclick = ()=> flagForm.classList.remove('show');
+      card.querySelector('[data-act="flag-submit"]').onclick = async ()=>{
+        const submitBtn = flagForm.querySelector('[data-act="flag-submit"]');
+        submitBtn.disabled = true;
+        const reason = flagForm.querySelector('input').value.trim();
+        const saved = await addFlag(b.id, reason);
+        if(saved){
+          b.flags = b.flags || [];
+          b.flags.push(saved);
+        }
+        renderGrid();
+      };
+    }
+    grid.appendChild(card);
+  });
+  renderStats();
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function renderAmenityGrid(current){
+  const wrap = document.getElementById('amenityGrid');
+  wrap.innerHTML = '';
+  AMENITIES.forEach(a=>{
+    const id = 'am_'+a.key;
+    const checked = current ? !!current.amenities[a.key] : false;
+    const label = document.createElement('label');
+    label.className = 'amenity-toggle' + (checked?' checked':'');
+    label.setAttribute('for', id);
+    label.innerHTML = `<input type="checkbox" id="${id}" data-key="${a.key}" ${checked?'checked':''}> ${a.label}`;
+    label.querySelector('input').addEventListener('change', (e)=>{
+      label.classList.toggle('checked', e.target.checked);
+    });
+    wrap.appendChild(label);
+  });
+}
+
+function openModal(id){
+  const current = id ? beaches.find(b=>b.id===id) : null;
+  if(current && current.ownerId && current.ownerId !== localOwnerId){
+    alert("This entry belongs to another contributor, so it can't be edited here — you can flag it instead if something looks wrong.");
+    return;
+  }
+  editingId = id || null;
+  document.getElementById('modalTitle').textContent = current ? 'Edit station' : 'Log a station';
+  document.getElementById('modalSub').textContent = current ? 'Update the details on file.' : "Record what's on hand at this beach.";
+  document.getElementById('fName').value = current ? current.name : '';
+  document.getElementById('fContributor').value = current && current.contributedBy ? current.contributedBy : '';
+  document.getElementById('fLoc').value = current ? current.location : '';
+  document.getElementById('fNotes').value = current ? current.notes : '';
+  renderAmenityGrid(current);
+
+  const geoStatusEl = document.getElementById('geocodeStatus');
+  if(current && typeof current.lat === 'number' && typeof current.lng === 'number'){
+    draftLat = current.lat; draftLng = current.lng; draftGeocodedAddress = current.location || '';
+    geoStatusEl.className = 'geocode-status success';
+    geoStatusEl.textContent = 'Using the coordinates already on file for this address.';
+  } else {
+    draftLat = null; draftLng = null; draftGeocodedAddress = null;
+    geoStatusEl.className = 'geocode-status';
+    geoStatusEl.textContent = '';
+  }
+
+  osmFetchResult = (current && current.osmSourced) ? {...current.osmSourced} : null;
+  const statusEl = document.getElementById('osmStatus');
+  const osmBtn = document.getElementById('osmLookupBtn');
+  osmBtn.disabled = false;
+  osmBtn.textContent = 'Check OpenStreetMap for parking & toilets';
+  if(osmFetchResult){
+    statusEl.className = 'osm-status success';
+    statusEl.textContent = `Last checked via OpenStreetMap on ${new Date(osmFetchResult.fetchedAt).toLocaleDateString()} — found ${osmFetchResult.toiletCount} toilet(s), ${osmFetchResult.parkingCount} parking area(s).`;
+  } else {
+    statusEl.className = 'osm-status';
+    statusEl.textContent = '';
+  }
+
+  document.getElementById('overlay').classList.add('show');
+  setTimeout(()=>document.getElementById('fName').focus(), 30);
+}
+
+function closeModal(){
+  document.getElementById('overlay').classList.remove('show');
+  editingId = null;
+  document.getElementById('beachForm').reset();
+}
+
+document.getElementById('openAddBtn').onclick = ()=> openModal(null);
+document.getElementById('cancelBtn').onclick = closeModal;
+document.getElementById('overlay').addEventListener('click', (e)=>{
+  if(e.target.id==='overlay') closeModal();
+});
+
+document.getElementById('beachForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const name = document.getElementById('fName').value.trim();
+  if(!name) return;
+  const contributedBy = document.getElementById('fContributor').value.trim();
+  const location = document.getElementById('fLoc').value.trim();
+  const notes = document.getElementById('fNotes').value.trim();
+  const amenities = {};
+  document.querySelectorAll('#amenityGrid input[type=checkbox]').forEach(cb=>{
+    amenities[cb.dataset.key] = cb.checked;
+  });
+
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Locating address…';
+
+  await ensureGeocoded();
+  const lat = draftLat === null ? undefined : draftLat;
+  const lng = draftLng === null ? undefined : draftLng;
+
+  saveBtn.textContent = 'Saving…';
+
+  const isNew = !editingId;
+  const draft = {
+    id: editingId || undefined,
+    name, location, notes, amenities, lat, lng,
+    contributedBy: contributedBy || undefined,
+    osmSourced: osmFetchResult || undefined,
+    ownerId: isNew ? localOwnerId : beaches.find(x=>x.id===editingId).ownerId,
+    flags: isNew ? [] : beaches.find(x=>x.id===editingId).flags
+  };
+
+  const saved = await saveBeach(draft, isNew);
+  if(saved){
+    saved.flags = draft.flags;
+    if(isNew){
+      beaches.push(saved);
+    } else {
+      const idx = beaches.findIndex(x=>x.id===editingId);
+      if(idx > -1) beaches[idx] = saved;
+    }
+    closeModal();
+    renderGrid();
+  }
+
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Save station';
+});
+
+document.getElementById('refreshBtn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = 'Syncing…';
+  await loadData();
+  renderGrid();
+  btn.textContent = original;
+  btn.disabled = false;
+});
+
+document.getElementById('searchInput').addEventListener('input', (e)=>{
+  searchTerm = e.target.value;
+  renderGrid();
+});
+
+(async function init(){
+  localOwnerId = await getOrCreateOwnerId();
+  if(!localOwnerId){
+    document.getElementById('grid').innerHTML = `<div class="empty"><b>Not connected</b>
+      Couldn't sign in to the backend, so nothing can load or save yet.<br><br>
+      In your Supabase dashboard, check: <b>Authentication &rarr; Sign In / Providers &rarr; Anonymous Sign-Ins</b> is switched on,
+      then reload this page.</div>`;
+    return;
+  }
+  await loadData();
+  renderLegend();
+  renderGrid();
+})();
+</script>
+</body>
+</html>
